@@ -7,25 +7,24 @@ from datetime import datetime
 from db import get_connection
 
 app = Flask(__name__, static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": "*"}})  # enable CORS for all API routes [web:18][web:30]
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# ---------- ROOT / STATIC ----------
+# ---------------- ROOT & STATIC ----------------
 
 @app.route("/")
 def index():
+    # Serves static/index.html
     return app.send_static_file("index.html")
 
 @app.route("/static/<path:filename>")
 def static_files(filename):
+    # Serves CSS, JS, images from /static
     return send_from_directory("static", filename)
 
-# ---------- CLIENT APIs ----------
+# ---------------- CLIENT APIs ----------------
 
 @app.route("/api/clients", methods=["GET"])
 def get_clients():
-    """
-    Fetch all clients for dropdown and clients table.
-    """
     try:
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
@@ -36,24 +35,15 @@ def get_clients():
         return jsonify({"success": True, "clients": clients}), 200
     except Error as e:
         print("GET /api/clients DB error:", e)
-        return jsonify({"success": False, "message": f"Database error: {e}"}), 500
+        return jsonify({"success": False, "message": "Database error"}), 500
     except Exception as e:
         print("GET /api/clients server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
 @app.route("/api/clients", methods=["POST"])
 def add_client():
-    """
-    Add a new client.
-    Frontend uses:
-      fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, address })
-      });
-    """
     try:
-        data = request.get_json(force=True, silent=False)  # ensures JSON or 400 [web:94]
+        data = request.get_json(force=True, silent=False)
     except Exception as e:
         print("POST /api/clients JSON error:", e, "raw:", request.data)
         return jsonify({"success": False, "message": "Invalid JSON body"}), 400
@@ -62,7 +52,6 @@ def add_client():
     email = (data.get("email") or "").strip() or None
     address = (data.get("address") or "").strip() or None
 
-    # basic validation
     if len(name) < 2:
         return jsonify({"success": False, "message": "Client name must be at least 2 characters"}), 400
 
@@ -70,7 +59,7 @@ def add_client():
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
 
-        # case-insensitive duplicate check to avoid false “already exists”
+        # avoid false “already exists” by case‑insensitive exact match
         cur.execute("SELECT id FROM clients WHERE LOWER(name) = LOWER(%s)", (name,))
         if cur.fetchone():
             cur.close()
@@ -93,12 +82,12 @@ def add_client():
         }), 201
     except Error as e:
         print("POST /api/clients DB error:", e)
-        return jsonify({"success": False, "message": f"Database error: {e}"}), 500
+        return jsonify({"success": False, "message": "Database error"}), 500
     except Exception as e:
         print("POST /api/clients server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
-# ---------- ITEM APIs ----------
+# ---------------- ITEM APIs ----------------
 
 @app.route("/api/items", methods=["GET"])
 def get_items():
@@ -112,7 +101,7 @@ def get_items():
         return jsonify({"success": True, "items": items}), 200
     except Error as e:
         print("GET /api/items DB error:", e)
-        return jsonify({"success": False, "message": f"Database error: {e}"}), 500
+        return jsonify({"success": False, "message": "Database error"}), 500
     except Exception as e:
         print("GET /api/items server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
@@ -165,18 +154,15 @@ def add_item():
         }), 201
     except Error as e:
         print("POST /api/items DB error:", e)
-        return jsonify({"success": False, "message": f"Database error: {e}"}), 500
+        return jsonify({"success": False, "message": "Database error"}), 500
     except Exception as e:
         print("POST /api/items server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
-# ---------- INVOICE LIST ----------
+# ---------------- INVOICE LIST ----------------
 
 @app.route("/api/invoices", methods=["GET"])
 def list_invoices():
-    """
-    List all invoices with client name and totals for dashboard. [web:87][web:90]
-    """
     try:
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
@@ -194,18 +180,15 @@ def list_invoices():
         return jsonify({"success": True, "invoices": invoices}), 200
     except Error as e:
         print("GET /api/invoices DB error:", e)
-        return jsonify({"success": False, "message": f"Database error: {e}"}), 500
+        return jsonify({"success": False, "message": "Database error"}), 500
     except Exception as e:
         print("GET /api/invoices server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
-# ---------- CREATE INVOICE ----------
+# ---------------- CREATE INVOICE ----------------
 
 @app.route("/api/invoices", methods=["POST"])
 def create_invoice():
-    """
-    Create invoice with GST per item and generate invoice_number in backend.
-    """
     try:
         data = request.get_json(force=True, silent=False)
     except Exception as e:
@@ -271,14 +254,12 @@ def create_invoice():
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
 
-        # ensure client exists
         cur.execute("SELECT id FROM clients WHERE id = %s", (client_id,))
         if not cur.fetchone():
             cur.close()
             conn.close()
             return jsonify({"success": False, "message": "Client not found"}), 400
 
-        # insert invoice
         cur.execute("""
             INSERT INTO invoices
             (client_id, invoice_date, due_date, status,
@@ -289,13 +270,11 @@ def create_invoice():
         conn.commit()
         invoice_id = cur.lastrowid
 
-        # generate invoice number
         invoice_number = f"INV-{invoice_id:05d}"
         cur.execute("UPDATE invoices SET invoice_number=%s WHERE id=%s",
                     (invoice_number, invoice_id))
         conn.commit()
 
-        # insert invoice items
         for ni in normalized_items:
             cur.execute("""
                 INSERT INTO invoice_items
@@ -325,15 +304,15 @@ def create_invoice():
         }), 201
     except Error as e:
         print("POST /api/invoices DB error:", e)
-        return jsonify({"success": False, "message": f"Database error: {e}"}), 500
+        return jsonify({"success": False, "message": "Database error"}), 500
     except Exception as e:
         print("POST /api/invoices server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
-# ---------- INVOICE DETAILS ----------
+# ---------------- INVOICE DETAILS ----------------
 
 @app.route("/api/invoices/<int:invoice_id>", methods=["GET"])
-def get_invoice_details(invoice_id):
+def get_invoice(invoice_id):
     try:
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
@@ -362,7 +341,7 @@ def get_invoice_details(invoice_id):
         return jsonify({"success": True, "invoice": inv}), 200
     except Error as e:
         print(f"GET /api/invoices/{invoice_id} DB error:", e)
-        return jsonify({"success": False, "message": f"Database error: {e}"}), 500
+        return jsonify({"success": False, "message": "Database error"}), 500
     except Exception as e:
         print(f"GET /api/invoices/{invoice_id} server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500

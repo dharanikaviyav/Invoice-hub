@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice Hub – Professional Invoice Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+            integrity="sha512-Aa8jvEUpkHjv1nGc3jJkMpPJnPuvA9J8uF1xI5yU9b1q3aJXOuHPfUvhcFefGq8OHtLqzZo4PM5XgS5QH0uKxw=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">Invoice Hub</div>
+        </div>
+        <nav class="sidebar-nav">
+            <button class="nav-link active" data-view="dashboard">📊 Dashboard</button>
+            <button class="nav-link" data-view="create-invoice">🧾 Create Invoice</button>
+            <button class="nav-link" data-view="clients">👥 Manage Clients</button>
+            <button class="nav-link" data-view="items">📦 Manage Items</button>
+        </nav>
+    </aside>
+
+    <main class="main">
+        <header class="main-header">
+            <h1 id="page-title">Dashboard</h1>
+            <div class="header-actions">
+                <button id="btn-new-invoice" class="btn btn-primary">+ New Invoice</button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD -->
+        <section id="view-dashboard" class="view active">
+            <div class="cards-row">
+                <div class="card">
+                    <div class="card-label">Total Invoices</div>
+                    <div class="card-value" id="stat-total-invoices">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Total Revenue</div>
+                    <div class="card-value" id="stat-total-revenue">₹0.00</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Pending Amount</div>
+                    <div class="card-value" id="stat-pending-amount">₹0.00</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Recent Invoices</h2>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Client</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dashboard-invoices-body">
+                        <tr><td colspan="6" class="empty-cell">No invoices yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- CREATE INVOICE -->
+        <section id="view-create-invoice" class="view">
+            <div id="invoice-form-message"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Create Invoice</h2>
+                </div>
+                <form id="invoice-form">
+                    <div class="form-grid-2">
+                        <div>
+                            <label class="form-label">Client *</label>
+                            <select id="invoice-client-select" class="form-input" required></select>
+                        </div>
+                        <div>
+                            <label class="form-label">Billing Address</label>
+                            <textarea id="invoice-billing-address" class="form-input" rows="3"
+                                      placeholder="Street, City, State, PIN"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div>
+                            <label class="form-label">Invoice Date *</label>
+                            <input type="date" id="invoice-date" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Due Date *</label>
+                            <input type="date" id="invoice-due-date" class="form-input" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div>
+                            <label class="form-label">Status *</label>
+                            <select id="invoice-status" class="form-input" required>
+                                <option value="Draft">Draft</option>
+                                <option value="Pending" selected>Pending</option>
+                                <option value="Paid">Paid</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Notes</label>
+                            <textarea id="invoice-notes" class="form-input" rows="3"
+                                      placeholder="Payment terms, thank you message, etc."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="panel-sub">
+                        <div class="panel-sub-header">
+                            <h3>Items</h3>
+                            <button type="button" id="btn-add-item-row" class="btn btn-secondary btn-sm">
+                                + Add Item
+                            </button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price (₹)</th>
+                                    <th>GST %</th>
+                                    <th>Total (₹)</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody id="invoice-items-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="totals-row">
+                        <div></div>
+                        <div class="totals-box">
+                            <div class="totals-line">
+                                <span>Subtotal</span>
+                                <span id="invoice-subtotal">₹0.00</span>
+                            </div>
+                            <div class="totals-line">
+                                <span>GST Total</span>
+                                <span id="invoice-tax-total">₹0.00</span>
+                            </div>
+                            <div class="totals-line grand">
+                                <span>Grand Total</span>
+                                <span id="invoice-grand-total">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Invoice</button>
+                        <button type="button" id="btn-reset-invoice" class="btn btn-secondary">Reset</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="invoice-preview-panel" class="panel hidden">
+                <div class="panel-header">
+                    <h2>Invoice Preview</h2>
+                    <div>
+                        <button id="btn-print-invoice" class="btn btn-secondary btn-sm">Print</button>
+                        <button id="btn-download-pdf" class="btn btn-primary btn-sm">Download PDF</button>
+                    </div>
+                </div>
+                <div id="invoice-preview" class="invoice-preview"></div>
+            </div>
+        </section>
+
+        <!-- CLIENTS -->
+        <section id="view-clients" class="view">
+            <div id="clients-message"></div>
+            <div class="panel">
+                <div class="panel-header"><h2>Manage Clients</h2></div>
+                <form id="client-form" class="form-inline">
+                    <input type="text" id="client-name" class="form-input" placeholder="Client name *" required>
+                    <input type="email" id="client-email" class="form-input" placeholder="Email (optional)">
+                    <input type="text" id="client-address" class="form-input" placeholder="Address (optional)">
+                    <button type="submit" class="btn btn-primary">Add Client</button>
+                </form>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Address</th>
+                        </tr>
+                        </thead>
+                        <tbody id="clients-table-body">
+                        <tr><td colspan="3" class="empty-cell">No clients yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ITEMS -->
+        <section id="view-items" class="view">
+            <div id="items-message"></div>
+            <div class="panel">
+                <div class="panel-header"><h2>Manage Items</h2></div>
+                <form id="item-form" class="form-inline">
+                    <input type="text" id="item-name" class="form-input" placeholder="Item name *" required>
+                    <input type="number" id="item-price" class="form-input" placeholder="Unit price *" min="0" step="0.01" required>
+                    <input type="number" id="item-gst" class="form-input" placeholder="GST %" min="0" max="100" step="0.01" required>
+                    <button type="submit" class="btn btn-primary">Add Item</button>
+                </form>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Unit Price (₹)</th>
+                            <th>GST %</th>
+                        </tr>
+                        </thead>
+                        <tbody id="items-table-body">
+                        <tr><td colspan="3" class="empty-cell">No items yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

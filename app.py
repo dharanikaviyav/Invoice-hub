@@ -7,9 +7,9 @@ from datetime import datetime
 from db import get_connection
 
 app = Flask(__name__, static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={r"/api/*": {"origins": "*"}})  # enable CORS for all API routes [web:18][web:30]
 
-# -------- ROOT / STATIC --------
+# ---------- ROOT / STATIC ----------
 
 @app.route("/")
 def index():
@@ -19,10 +19,13 @@ def index():
 def static_files(filename):
     return send_from_directory("static", filename)
 
-# -------- CLIENT APIS --------
+# ---------- CLIENT APIs ----------
 
 @app.route("/api/clients", methods=["GET"])
-def api_get_clients():
+def get_clients():
+    """
+    Fetch all clients for dropdown and clients table.
+    """
     try:
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
@@ -39,9 +42,18 @@ def api_get_clients():
         return jsonify({"success": False, "message": "Server error"}), 500
 
 @app.route("/api/clients", methods=["POST"])
-def api_add_client():
+def add_client():
+    """
+    Add a new client.
+    Frontend uses:
+      fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, address })
+      });
+    """
     try:
-        data = request.get_json(force=True, silent=False)
+        data = request.get_json(force=True, silent=False)  # ensures JSON or 400 [web:94]
     except Exception as e:
         print("POST /api/clients JSON error:", e, "raw:", request.data)
         return jsonify({"success": False, "message": "Invalid JSON body"}), 400
@@ -50,6 +62,7 @@ def api_add_client():
     email = (data.get("email") or "").strip() or None
     address = (data.get("address") or "").strip() or None
 
+    # basic validation
     if len(name) < 2:
         return jsonify({"success": False, "message": "Client name must be at least 2 characters"}), 400
 
@@ -57,6 +70,7 @@ def api_add_client():
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
 
+        # case-insensitive duplicate check to avoid false “already exists”
         cur.execute("SELECT id FROM clients WHERE LOWER(name) = LOWER(%s)", (name,))
         if cur.fetchone():
             cur.close()
@@ -84,10 +98,10 @@ def api_add_client():
         print("POST /api/clients server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
-# -------- ITEM APIS --------
+# ---------- ITEM APIs ----------
 
 @app.route("/api/items", methods=["GET"])
-def api_get_items():
+def get_items():
     try:
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
@@ -104,7 +118,7 @@ def api_get_items():
         return jsonify({"success": False, "message": "Server error"}), 500
 
 @app.route("/api/items", methods=["POST"])
-def api_add_item():
+def add_item():
     try:
         data = request.get_json(force=True, silent=False)
     except Exception as e:
@@ -156,10 +170,13 @@ def api_add_item():
         print("POST /api/items server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
-# -------- INVOICE APIS --------
+# ---------- INVOICE LIST ----------
 
 @app.route("/api/invoices", methods=["GET"])
-def api_list_invoices():
+def list_invoices():
+    """
+    List all invoices with client name and totals for dashboard. [web:87][web:90]
+    """
     try:
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
@@ -182,8 +199,13 @@ def api_list_invoices():
         print("GET /api/invoices server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
+# ---------- CREATE INVOICE ----------
+
 @app.route("/api/invoices", methods=["POST"])
-def api_create_invoice():
+def create_invoice():
+    """
+    Create invoice with GST per item and generate invoice_number in backend.
+    """
     try:
         data = request.get_json(force=True, silent=False)
     except Exception as e:
@@ -249,12 +271,14 @@ def api_create_invoice():
         conn = get_connection()
         cur = conn.cursor(dictionary=True)
 
+        # ensure client exists
         cur.execute("SELECT id FROM clients WHERE id = %s", (client_id,))
         if not cur.fetchone():
             cur.close()
             conn.close()
             return jsonify({"success": False, "message": "Client not found"}), 400
 
+        # insert invoice
         cur.execute("""
             INSERT INTO invoices
             (client_id, invoice_date, due_date, status,
@@ -265,11 +289,13 @@ def api_create_invoice():
         conn.commit()
         invoice_id = cur.lastrowid
 
+        # generate invoice number
         invoice_number = f"INV-{invoice_id:05d}"
         cur.execute("UPDATE invoices SET invoice_number=%s WHERE id=%s",
                     (invoice_number, invoice_id))
         conn.commit()
 
+        # insert invoice items
         for ni in normalized_items:
             cur.execute("""
                 INSERT INTO invoice_items
@@ -304,8 +330,10 @@ def api_create_invoice():
         print("POST /api/invoices server error:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
+# ---------- INVOICE DETAILS ----------
+
 @app.route("/api/invoices/<int:invoice_id>", methods=["GET"])
-def api_get_invoice(invoice_id):
+def get_invoice_details(invoice_id):
     try:
         conn = get_connection()
         cur = conn.cursor(dictionary=True)

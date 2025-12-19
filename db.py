@@ -3,15 +3,15 @@ import mysql.connector
 from mysql.connector import Error
 
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",          # change if needed
-    "password": "root",      # change if needed
+    "host": "localhost",      # update if needed
+    "user": "root",           # update if needed
+    "password": "root",       # update if needed
     "database": "invoice_hub"
 }
 
 def get_connection():
     """
-    Create and return a MySQL connection using DB_CONFIG.
+    Open a new MySQL connection using DB_CONFIG.
     Raises Error if connection fails.
     """
     conn = mysql.connector.connect(**DB_CONFIG)

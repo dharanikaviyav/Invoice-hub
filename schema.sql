@@ -1,5 +1,4 @@
 -- schema.sql
-
 DROP DATABASE IF EXISTS invoice_hub;
 CREATE DATABASE invoice_hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE invoice_hub;
